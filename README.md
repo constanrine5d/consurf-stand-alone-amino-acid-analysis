@@ -1,6 +1,18 @@
 # ConSurf Stand-Alone with Amino Acid Analysis
 
-A comprehensive toolkit for running ConSurf evolutionary conservation analysis locally, with enhanced amino acid distribution analysis and sequence grouping capabilities.
+> **Forked from**: [leezx/ConSurf-StandAlone](https://github.com/leezx/ConSurf-StandAlone)  
+> **Original source**: [Rostlab/ConSurf](https://github.com/Rostlab/ConSurf)
+
+A comprehensive toolkit for running ConSurf evolutionary conservation analysis locally, with **enhanced amino acid distribution analysis** and sequence grouping capabilities.
+
+### ✨ What's New in This Fork
+
+- **Amino Acid Distribution Analysis**: Analyze specific positions with detailed AA distribution
+- **Automated Sequence Grouping**: Organize sequences by amino acid into separate FASTA files
+- **Folder Structure**: `position_X/covered/1_AA_60.0/sequences.fasta` organization
+- **Batch Processing**: Analyze single, multiple, or all positions at once
+- **Enhanced Documentation**: Comprehensive guides with examples
+- **Production Ready**: Clean structure, .gitignore, numbered workflow scripts
 
 ## 🌟 Features
 
@@ -383,10 +395,30 @@ This tool builds upon ConSurf stand-alone (available from tau.ac.il) and Rate4Si
 
 The amino acid analysis enhancements are provided as-is for research purposes.
 
-## 👤 Authors
+## 👤 Authors & Attribution
 
-- Original ConSurf: Haim Ashkenazy, Penn O., Doron-Faigenboim A., Cohen O., Cannarozzi G., Zomer O., Pupko T.
-- Amino Acid Analysis Enhancement: [Your Name]
+### Original ConSurf
+- **Authors**: Haim Ashkenazy, Penn O., Doron-Faigenboim A., Cohen O., Cannarozzi G., Zomer O., Pupko T.
+- **Web Server**: https://consurf.tau.ac.il/
+- **Original Repo**: https://github.com/Rostlab/ConSurf (last updated 2015)
+
+### ConSurf Stand-Alone Setup & Documentation
+- **Author**: [leezx](https://github.com/leezx)
+- **Repository**: https://github.com/leezx/ConSurf-StandAlone
+- **Contributions**: 
+  - Detailed installation and database setup guide
+  - Bug fixes and configuration improvements
+  - Rate4Site integration documentation
+
+### Amino Acid Analysis Enhancement
+- **Author**: Constantine Grigorakis
+- **Contributions**:
+  - Position-specific amino acid distribution analysis (`analyze_position.py`)
+  - Automated sequence grouping by amino acid
+  - FASTA file organization system
+  - Batch processing capabilities
+  - Enhanced documentation and examples
+  - Production-ready repository structure
 
 ## 🔗 Links
 
