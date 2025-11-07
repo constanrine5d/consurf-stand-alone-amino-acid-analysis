@@ -1,0 +1,46 @@
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+ENV/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Results and outputs
+results_*/
+amino_acids_analysis_results/
+*.log
+
+# Example data (kept in example/ folder)
+example/results_*/
+example/amino_acids_analysis_results/
+
+# Database files (too large for git)
+*.fasta
+*.fasta.gz
+db/
+
+# Temporary files
+*.tmp
+*.bak
+*.old

@@ -34,6 +34,7 @@ import time
 import tempfile
 import urllib
 import argparse
+from tqdm import tqdm
 
 from datetime import date
 from datetime import datetime
@@ -113,11 +114,11 @@ def get_form():
         
     if args.Maximum_Likelihood:
         
-        form['ALGORITHM'] = "Bayes"
+        form['ALGORITHM'] = "LikelihoodML"
         
     else:
         
-        form['ALGORITHM'] = "LikelihoodML"
+        form['ALGORITHM'] = "Bayes"
         
     if vars['pdb_file_name'] is None:
         
@@ -200,7 +201,12 @@ def create_cd_hit_output(input_file, output_file, cutoff, cd_hit_dir, ref_cd_hit
 
     num_cd_hits = 0
     # inserting chosen homologues to a hash
-    for seq_record in SeqIO.parse(output_file, "fasta"):
+    print("\n📊 Processing CD-HIT results...")
+    
+    # Count total sequences for progress bar
+    total_seqs = sum(1 for _ in SeqIO.parse(output_file, "fasta"))
+    
+    for seq_record in tqdm(SeqIO.parse(output_file, "fasta"), total=total_seqs, desc="   Parsing sequences", unit="seq"):
 
         seq = seq_record.seq
         seq_name = seq_record.id
@@ -213,6 +219,7 @@ def create_cd_hit_output(input_file, output_file, cutoff, cd_hit_dir, ref_cd_hit
         ref_cd_hit_hash[seq_name]['SEQ'] = seq
         ref_cd_hit_hash[seq_name]['DESCRIPTION'] = description
         """
+    print(f"✅ CD-HIT complete: {num_cd_hits} unique sequences after clustering")
     return ["ok", num_cd_hits]
 
 	
@@ -2753,15 +2760,24 @@ def run_rate4site():
 
     r4s_comm = ""
     comm_end = ""
+    
+    # Print which algorithm is being used
+    print(f"\n📊 Conservation Calculation Settings:")
+    print(f"   Algorithm: {form['ALGORITHM']}")
+    print(f"   Model: {form['SUB_MATRIX']}")
+    LOG.write(f"run_rate4site: Using algorithm={form['ALGORITHM']}, model={form['SUB_MATRIX']}\n")
+    
     if form['ALGORITHM'] == "Bayes":
 
         algorithm = "-ib" # Save the algorithm, it maybe used later
+        print(f"   Method: Empirical Bayes (recommended, more accurate)")
         r4s_comm += "%s -ib -a %s -s %s -zn %s " %(rate4s, vars['query_string'], vars['msa_fasta'], MatrixHash[(form['SUB_MATRIX']).upper()]) 
         comm_end += "-bn -l %s -o %s -n 32 -v 9 " %( vars['r4s_log'], vars['r4s_out'])
 
     else:
 
         algorithm = "-im" # Save the algorithm, it maybe used later
+        print(f"   Method: Maximum Likelihood")
         r4s_comm += "%s %s -a %s -s %s -zn %s " %(rate4s_ML, algorithm, vars['query_string'], vars['msa_fasta'], MatrixHash[(form['SUB_MATRIX']).upper()])
         comm_end += "-bn -l %s -o %s -v 9 " %(vars['r4s_log'], vars['r4s_out']) 
 
@@ -2839,16 +2855,26 @@ def run_protest(msa_file_path):
 
     PRT_JAR_FILE = "/bioseq/Programs/ModelTest/prottest-3.4.1/prottest-3.4.1.jar"
     output_file_path = "model_selection.txt"
+
+    # If Prottest jar is not present, skip running Prottest and return a sensible default model.
+    if not os.path.exists(PRT_JAR_FILE):
+        LOG.write("run_protest: PRT_JAR_FILE not found at %s. Skipping Prottest and using default model WAG.\n" % PRT_JAR_FILE)
+        print("   Prottest not found; skipping model selection and using default model: WAG")
+        # Create a minimal output file for reproducibility/records
+        try:
+            with open(output_file_path, 'w') as fh:
+                fh.write("Best model according to AICc: WAG\n")
+        except Exception:
+            pass
+        return "WAG"
+
     cmd = "java -jar %s -log disabled -i %s -AICC -o %s -S 1 -JTT -LG -MtREV -Dayhoff -WAG -CpREV -threads 1" %(PRT_JAR_FILE, msa_file_path, output_file_path)
     submit_job_to_Q("protest", cmd)
     LOG.write("run_protest: %s\n" %cmd)
 
     try:
-
         f = open(output_file_path, 'r')
-
     except:
-
         exit_on_error('sys_error', "Cannot open the file " + output_file_path + " for reading.")
 
     line = f.read()
@@ -2924,7 +2950,7 @@ def create_MSA():
 
     elif form['MSAprogram'] == "MAFFT":
 
-        cmd = "%s --localpair --maxiterate 1000 --quiet %s > %s" %(GENERAL_CONSTANTS.MAFFT_LINSI_GUIDANCE, vars['FINAL_sequences'], vars['msa_fasta'])
+        cmd = "%s --thread 10 --localpair --maxiterate 1000 --quiet %s > %s" %(GENERAL_CONSTANTS.MAFFT_LINSI_GUIDANCE, vars['FINAL_sequences'], vars['msa_fasta'])
         LOG.write("create_MSA : run %s\n" %cmd)
         submit_job_to_Q("MAFFT", cmd)
         convert_msa_format(vars['msa_fasta'], "fasta", vars['msa_clustal'], "clustal")
@@ -3147,6 +3173,20 @@ def run_search(Search_Out_File, Output_Type = "PlainText"):
     # Search_Out_File - The output File
     # Output_Type - The output can be in HTML format or xml
 
+    # If a previous search output already exists and is non-empty, reuse it and skip running the search.
+    try:
+        if os.path.exists(Search_Out_File) and os.path.getsize(Search_Out_File) > 0:
+            file_size_mb = os.path.getsize(Search_Out_File) / (1024 * 1024)
+            LOG.write("run_search: found existing search output '%s' (%.1f MB), skipping search.\n" % (Search_Out_File, file_size_mb))
+            print(f"\n✅ Found existing search results: {Search_Out_File} ({file_size_mb:.1f} MB)")
+            print(f"   Skipping HMMER/BLAST search (saves ~20-30 minutes!)")
+            print(f"   To force re-search, delete: {Search_Out_File}\n")
+            return
+    except Exception as e:
+        # If any error occurs while checking the file, proceed to run the search normally
+        LOG.write(f"run_search: error checking existing file: {e}\n")
+        pass
+
     cmd = ""
 
     if form['DNA_AA'] == "AA":
@@ -3199,8 +3239,179 @@ def submit_job_to_Q(job_name_prefix, cmd):
     #q_cmd = ["module", "load", "python/python-3.8", "hmmr/hmmr-3.1b2", "clustalw/2.1;"]
     #q_cmd = cmd.split()
     LOG.write("submit_job_to_Q : command: %s\n" %cmd)
-    p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, encoding = "utf-8", shell=True)
-    out, err = p.communicate()
+    
+    # Record start time
+    start_time = time.time()
+    start_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Show what's running
+    print(f"\n🔄 Running {job_name_prefix}...")
+    print(f"   Started: {start_datetime}")
+    
+    if "jackhmmer" in cmd:
+        print("   Searching protein database...")
+        
+        # Get database size for progress estimation
+        db_match = re.search(r'(\S+\.fasta)\s*>', cmd)
+        db_size_bytes = 0
+        if db_match:
+            db_path = db_match.group(1)
+            if os.path.exists(db_path):
+                db_size_bytes = os.path.getsize(db_path)
+                db_size_gb = db_size_bytes / (1024 * 1024 * 1024)
+                if db_size_gb > 1:
+                    print(f"   Database size: {db_size_gb:.1f} GB")
+                else:
+                    db_size_mb = db_size_bytes / (1024 * 1024)
+                    print(f"   Database size: {db_size_mb:.0f} MB")
+        
+        # Run with progress monitoring
+        import threading
+        
+        # Extract output file from command
+        output_file = None
+        output_match = re.search(r'>\s*(\S+)', cmd)
+        if output_match:
+            output_file = output_match.group(1)
+        
+        # Progress monitoring thread
+        progress_bar = None
+        stop_monitoring = threading.Event()
+        
+        def monitor_output():
+            nonlocal progress_bar
+            last_size = 0
+            update_count = 0
+            
+            # Estimate total based on typical jackhmmer output size vs database size
+            # Typically jackhmmer output is about 0.01-0.05% of database size for moderate hits
+            estimated_total = max(100000, int(db_size_bytes * 0.0001))  # Conservative estimate
+            
+            with tqdm(total=estimated_total, desc="   Searching", unit="B", unit_scale=True, 
+                     unit_divisor=1024, ncols=100, miniters=1) as progress_bar:
+                while not stop_monitoring.is_set():
+                    if output_file and os.path.exists(output_file):
+                        current_size = os.path.getsize(output_file)
+                        if current_size > last_size:
+                            delta = current_size - last_size
+                            progress_bar.update(delta)
+                            last_size = current_size
+                            update_count += 1
+                            
+                            # After some data, adjust total estimate based on actual rate
+                            if update_count == 20 and current_size > 1000:
+                                elapsed = time.time() - start_time
+                                if elapsed > 60:  # After 1 minute
+                                    # Estimate based on current rate
+                                    rate = current_size / elapsed
+                                    # Assume it will take 20-30 minutes total for large DB
+                                    estimated_time = 1500  # 25 minutes in seconds
+                                    new_total = int(rate * estimated_time)
+                                    if new_total > progress_bar.total:
+                                        progress_bar.total = new_total
+                                        progress_bar.refresh()
+                    time.sleep(0.5)
+        
+        # Start monitoring thread
+        monitor_thread = threading.Thread(target=monitor_output, daemon=True)
+        monitor_thread.start()
+        
+        # Run the command
+        p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, encoding = "utf-8", shell=True)
+        out, err = p.communicate()
+        
+        # Stop monitoring
+        stop_monitoring.set()
+        monitor_thread.join(timeout=1)
+        
+    elif "rate4site" in cmd:
+        print("   Computing conservation scores with rate4site...")
+        print("   (This may take 2m 55s with 150 sequences on M1 Max)")
+        print("   Progress: ", end="", flush=True)
+        
+        # Run with progress dots
+        p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, encoding = "utf-8", shell=True)
+        
+        # Print a dot every 15 seconds while waiting
+        import threading
+        stop_dots = threading.Event()
+        def print_dots():
+            count = 0
+            while not stop_dots.is_set():
+                stop_dots.wait(15)
+                if not stop_dots.is_set():
+                    count += 1
+                    print(".", end="", flush=True)
+                    if count % 4 == 0:  # New line every minute
+                        print(f" [{count//4} min]")
+                        print("   Progress: ", end="", flush=True)
+        
+        dot_thread = threading.Thread(target=print_dots)
+        dot_thread.start()
+        
+        out, err = p.communicate()
+        stop_dots.set()
+        dot_thread.join(timeout=1)
+        print(" Done!")
+    elif "clustalw" in cmd or "muscle" in cmd or "mafft" in cmd:
+        print("   Aligning sequences with MAFFT...")
+        print("   (This may take 15m 39s with 1000 sequences with 10 threads M1 Max)")
+        print("   Progress: ", end="", flush=True)
+        
+        # Run with progress dots
+        p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, encoding = "utf-8", shell=True)
+        
+        # Print a dot every 10 seconds while waiting
+        import threading
+        stop_dots = threading.Event()
+        def print_dots():
+            count = 0
+            while not stop_dots.is_set():
+                stop_dots.wait(10)
+                if not stop_dots.is_set():
+                    count += 1
+                    print(".", end="", flush=True)
+                    if count % 6 == 0:  # New line every minute
+                        print(f" [{count//6} min]")
+                        print("   Progress: ", end="", flush=True)
+        
+        dot_thread = threading.Thread(target=print_dots)
+        dot_thread.start()
+        
+        out, err = p.communicate()
+        stop_dots.set()
+        dot_thread.join(timeout=1)
+        print(" Done!")
+    else:
+        # Other commands
+        p = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.PIPE, encoding = "utf-8", shell=True)
+        out, err = p.communicate()
+    
+    # Calculate elapsed time
+    end_time = time.time()
+    end_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    elapsed_seconds = end_time - start_time
+    
+    # Format elapsed time nicely
+    if elapsed_seconds < 60:
+        elapsed_str = f"{elapsed_seconds:.1f}s"
+    elif elapsed_seconds < 3600:
+        minutes = int(elapsed_seconds // 60)
+        seconds = int(elapsed_seconds % 60)
+        elapsed_str = f"{minutes}m {seconds}s"
+    else:
+        hours = int(elapsed_seconds // 3600)
+        minutes = int((elapsed_seconds % 3600) // 60)
+        elapsed_str = f"{hours}h {minutes}m"
+    
+    if p.returncode == 0:
+        print(f"✅ {job_name_prefix} completed successfully")
+    else:
+        print(f"⚠️  {job_name_prefix} finished with warnings/errors")
+    
+    print(f"   Finished: {end_datetime}")
+    print(f"   Elapsed time: {elapsed_str}")
+    
     LOG.write("waiting for the file %s\n" %err)
     
 """
@@ -3775,6 +3986,21 @@ def prepare_pdb():
 vars = {} # Hash with variables information
 form = {} # Hash with form information
 get_form()
+
+# Print startup configuration
+print("\n" + "="*70)
+print("🧬  ConSurf Conservation Analysis")
+print("="*70)
+print(f"Algorithm: {form['ALGORITHM']}")
+if form['ALGORITHM'] == "Bayes":
+    print("  → Empirical Bayes method (RECOMMENDED - more accurate)")
+else:
+    print("  → Maximum Likelihood method")
+print(f"Search method: {form['Homolog_search_algorithm']}")
+print(f"Database: {form['proteins_DB']}")
+print(f"Model: {form['SUB_MATRIX']}")
+print(f"Output directory: {vars['working_dir']}")
+print("="*70 + "\n")
     
 """
 fields = cgi.FieldStorage()

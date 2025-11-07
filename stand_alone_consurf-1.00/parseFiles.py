@@ -4,6 +4,7 @@ import os
 import subprocess
 from Bio import SearchIO
 from Bio import SeqIO
+from tqdm import tqdm
 
 def choose_homologoues_from_search_with_lower_identity_cutoff(searchType, query, redundancyRate, frag_overlap, min_length_percent, min_id_percent, min_num_of_homologues, search_output, fasta_output, rejected_seqs, ref_search_hash, Nuc_or_AA):
 
@@ -43,6 +44,10 @@ def choose_homologoues_from_search_with_lower_identity_cutoff(searchType, query,
     num_homologoues = 0
     num_rejected = 1
     final_num_homologues = 0
+    
+    print("\n🔍 Filtering HMMER results...")
+    print(f"   Criteria: ≥{min_id_percent}% identity, ≥{int(min_length)} aa length")
+    
     if searchType == "HMMER":
 
         # Moving the start position to the last round of the output
@@ -76,6 +81,11 @@ def choose_homologoues_from_search_with_lower_identity_cutoff(searchType, query,
 
                  line = RAW_OUT.readline()
 
+        # Start progress tracking without counting (faster)
+        print("   Processing sequences (progress updates every 1000 seqs)...")
+        pbar = tqdm(desc="   Filtering", unit="seq", mininterval=0.5)
+        
+        processed_count = 0
         # we process the output
         while line != "":
 
@@ -85,6 +95,12 @@ def choose_homologoues_from_search_with_lower_identity_cutoff(searchType, query,
             if match1:
 
                 # new seq found
+                processed_count += 1
+                pbar.update(1)
+                
+                # Print milestone every 1000 sequences
+                if processed_count % 1000 == 0:
+                    pbar.set_postfix_str(f"Accepted: {final_num_homologues}, Rejected: {num_rejected-1}")
 
                 num_homologoues += 1
                 seq_name = match1.group(1)
@@ -179,6 +195,9 @@ def choose_homologoues_from_search_with_lower_identity_cutoff(searchType, query,
                     else:
 
                         line = RAW_OUT.readline()
+        
+        pbar.close()
+        print(f"✅ Filtering complete: {final_num_homologues} sequences passed, {num_rejected-1} rejected")
 
     else:
 
@@ -270,6 +289,11 @@ def choose_homologoues_from_search_with_lower_identity_cutoff(searchType, query,
 
     OUT_REJECT.close()
     OUT.close()
+    
+    # Print summary only if not already printed (for BLAST branch)
+    if searchType != "HMMER":
+        print(f"\n✅ Filtering complete: {final_num_homologues} sequences passed, {num_rejected} rejected")
+    
     # Checking that the number of homologues found is legal
 
     ret = ""
@@ -669,7 +693,10 @@ def sort_sequences_from_eval(ref_to_seqs_hash, ref_to_cd_hash, max_num_homologs,
 
     final_number_of_homologoues = 1
     # write homologs
-    for s_name in sorted(ref_to_seqs_hash.keys(), key = ref_to_seqs_hash.get):
+    print(f"\n📋 Selecting top {int(max_num_homologs)} sequences from {size_cd_hit_hash} unique sequences...")
+    
+    sorted_keys = sorted(ref_to_seqs_hash.keys(), key = ref_to_seqs_hash.get)
+    for s_name in tqdm(sorted_keys, desc="   Selecting homologs", unit="seq"):
 
         # quit if reached max number of homologs
         if counter > max_num_homologs * uniform:
@@ -695,6 +722,7 @@ def sort_sequences_from_eval(ref_to_seqs_hash, ref_to_cd_hash, max_num_homologs,
             jump += uniform
 
     FINAL.close()
+    print(f"✅ Selected {final_number_of_homologoues} sequences for MSA")
     return("ok", "uniform is: " + str(uniform), final_number_of_homologoues)
 
 def fasta_max_median_E_value(blst_f):

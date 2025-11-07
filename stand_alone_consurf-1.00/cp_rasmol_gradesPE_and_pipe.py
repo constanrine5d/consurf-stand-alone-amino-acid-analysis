@@ -27,12 +27,12 @@ def assign_colors_according_to_r4s_layers(Output, rate4site_filename, algorithm)
     line = RATE4SITE.readline()
     while line != "":
 
-        line.rstrip()
+        line = line.rstrip()
 
         if algorithm == "Bayes":
 
-            # baysean
-            match1 = re.match(r'^\s+(\d+)\s+(\w)\s+(\S+)\s+\[\s*(\S+),\s*(\S+)\]\s+\S+\s+(\d+)\/(\d+)', line)
+            # bayesian - pattern matches lines like: "1    A    -1.0779  [-1.5394,-0.8595] 0.6036   6/150"
+            match1 = re.match(r'^\s*(\d+)\s+(\w)\s+(\S+)\s+\[\s*(\S+),\s*(\S+)\]\s+\S+\s+(\d+)\/(\d+)', line)
             if match1:
 
                 Output.append({'POS' : int(match1.group(1)), 'SEQ' : match1.group(2), 'GRADE' : float(match1.group(3)), 'INTERVAL_LOW' : float(match1.group(4)), 'INTERVAL_HIGH' : float(match1.group(5)), 'MSA_NUM' : int(match1.group(6)), 'MSA_DENUM' : match1.group(7)})
