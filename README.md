@@ -25,6 +25,7 @@ Execute in order:
 2. `2_verify_setup.sh` - Verify installation of all modules
 3. `3_run_consurf_complete.sh` - Run ConSurf analysis
 4. `4_analyze_position.sh` - Analyze amino acid distribution
+5. `5_check_characterized_enzymes.sh` - Check enzyme characterization status
 
 ### Amino Acid Analysis
 
@@ -38,6 +39,25 @@ Execute in order:
 # Analyze all positions
 ./4_analyze_position.sh --all
 ```
+
+### Enzyme Characterization Check
+
+Query UniProt to check if sequences are from characterized enzymes:
+
+```bash
+# Analyze all sequences.fasta files
+./5_check_characterized_enzymes.sh
+
+# Analyze specific folder
+./5_check_characterized_enzymes.sh path/to/folder/sequences.fasta
+```
+
+Output: Creates `enzyme_characterization_report.txt` in each folder with:
+- Reviewed (Swiss-Prot) entries
+- Well-studied proteins (5+ publications)
+- Characterized proteins (with names)
+- Uncharacterized proteins
+- PubMed publication counts for each protein
 
 ### Output Structure
 
@@ -59,19 +79,23 @@ results_final/amino_acids_analysis_results/
 ```
 .
 ├── analyze_position.py           # Core analysis tool
+├── check_characterized_enzymes.py # UniProt enzyme checker
 ├── 1_setup_databases.sh          # Database setup
 ├── 2_verify_setup.sh             # Verify installation
 ├── 3_run_consurf_complete.sh     # Run ConSurf
 ├── 4_analyze_position.sh         # Analyze positions
+├── 5_check_characterized_enzymes.sh # Check enzyme status
 ├── bin/                          # Pre-compiled binaries
 ├── stand_alone_consurf-1.00/     # ConSurf scripts
+├── environment.yml               # Conda environment export
 └── example/                      # Example data (TtXyn30A)
 ```
 
 ## Requirements
 
-- Python 3.10
-- Conda environment with: hmmer, clustalw, cd-hit, mafft, muscle
+- Python 3.10+
+- Conda environment with: hmmer, clustalw, cd-hit, mafft, muscle, biopython
+- Python packages: requests (for UniProt API queries)
 ```
 name: python3.10bio
 channels:
