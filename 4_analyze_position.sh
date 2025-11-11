@@ -7,11 +7,8 @@
 
 # Configuration
 CONDA_ENV="python3.10bio"
-RESULTS_DIR="/Users/constanrine5d/programs/ConSurf/results_final"
-MSA_FILE="${RESULTS_DIR}/msa_fasta.aln"
-GRADES_FILE="${RESULTS_DIR}/consurf_grades.txt"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON_SCRIPT="${SCRIPT_DIR}/analyze_position.py"
+PYTHON_SCRIPT="${SCRIPT_DIR}/libraries/analyze_position.py"
 
 # Colors for output
 RED='\033[0;31m'
@@ -44,17 +41,19 @@ print_info() {
 
 show_usage() {
     cat << EOF
-Usage: $0 [OPTIONS] [POSITIONS...]
+Usage: $0 <RESULTS_DIR> [OPTIONS] [POSITIONS...]
 
 Analyze amino acid distribution at specific positions in ConSurf MSA.
 
 If no positions are specified, analyzes ALL positions (default behavior).
 
+ARGUMENTS:
+    RESULTS_DIR           Results directory (e.g., results/results_example)
+
 OPTIONS:
     -e, --env ENV          Conda environment name (default: python3.10bio)
-    -r, --results DIR      Results directory (default: results_final)
-    -m, --msa FILE         MSA file path (default: results_final/msa_fasta.aln)
-    -g, --grades FILE      Grades file path (default: results_final/consurf_grades.txt)
+    -m, --msa FILE         MSA file path (default: <RESULTS_DIR>/msa_fasta.aln)
+    -g, --grades FILE      Grades file path (default: <RESULTS_DIR>/consurf_grades.txt)
     -o, --output FILE      Save output to file (auto-generated for all positions)
     --all                  Explicitly analyze all positions (same as no positions)
     -h, --help             Show this help message
@@ -64,23 +63,17 @@ POSITIONS:
     If omitted, ALL positions are analyzed (default).
     
 EXAMPLES:
-    # Analyze ALL positions (default) - saves to amino_acid_distribution_all_positions.txt
-    $0
+    # Analyze ALL positions (default)
+    $0 results/results_example
     
     # Analyze single position
-    $0 226
+    $0 results/results_example 226
     
     # Analyze multiple positions
-    $0 226 227 228
-    
-    # Save specific position to custom file
-    $0 -o pos_226_analysis.txt 226
-    
-    # Use different results directory
-    $0 -r /path/to/results
+    $0 results/results_example 226 227 228
     
     # Use custom conda environment
-    $0 -e myenv
+    $0 results/results_example -e myenv
 
 COMMON POSITIONS OF INTEREST:
     - Active site residues
@@ -88,15 +81,11 @@ COMMON POSITIONS OF INTEREST:
     - Interface residues
     - Mutation sites
 
-To find positions in consurf_grades.txt:
-    grep "GLU:233" results_final/consurf_grades.txt
-    
 OUTPUT FILES:
-    - amino_acid_distribution_all_positions.txt (default for all positions)
-    - Custom filename with -o option
+    - <RESULTS_DIR>/amino_acid_distribution_all_positions.txt
     
 FOLDER STRUCTURE (automatically created):
-    results_final/amino_acids_analysis_results/
+    <RESULTS_DIR>/amino_acids_analysis_results/
     └── position_226_GLU_233_G/
         ├── not_covered/
         │   └── sequences.fasta          # Sequences with gaps at this position
@@ -119,6 +108,20 @@ EOF
 # Parse arguments
 #############################################################################
 
+# First argument must be the results directory
+if [ $# -eq 0 ]; then
+    print_error "Results directory is required"
+    show_usage
+    exit 1
+fi
+
+RESULTS_DIR="$1"
+shift
+
+# Set default file paths based on results directory
+MSA_FILE="${RESULTS_DIR}/msa_fasta.aln"
+GRADES_FILE="${RESULTS_DIR}/consurf_grades.txt"
+
 OUTPUT_FILE=""
 POSITIONS=()
 ANALYZE_ALL=false
@@ -127,12 +130,6 @@ while [[ $# -gt 0 ]]; do
     case $1 in
         -e|--env)
             CONDA_ENV="$2"
-            shift 2
-            ;;
-        -r|--results)
-            RESULTS_DIR="$2"
-            MSA_FILE="${RESULTS_DIR}/msa_fasta.aln"
-            GRADES_FILE="${RESULTS_DIR}/consurf_grades.txt"
             shift 2
             ;;
         -m|--msa)

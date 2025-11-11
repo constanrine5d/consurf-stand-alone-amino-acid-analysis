@@ -40,12 +40,13 @@ if [ $# -lt 2 ]; then
     echo -e "${BLUE}Usage:${NC} $0 <PDB_FILE> <CHAIN_ID> [OUTPUT_DIR]"
     echo ""
     echo -e "${BLUE}Arguments:${NC}"
-    echo "  PDB_FILE   - Path to PDB file"
-    echo "  CHAIN_ID   - Chain identifier (e.g., A, B, G)"
-    echo "  OUTPUT_DIR - Output directory (default: ./consurf_output)"
+    echo "  PDB_FILE   - Path to PDB file (required)"
+    echo "  CHAIN_ID   - Chain identifier (required, e.g., A, B, G)"
+    echo "  OUTPUT_DIR - Output directory (optional, default: results/results_[pdb_name])"
     echo ""
     echo -e "${BLUE}Example:${NC}"
-    echo "  $0 TtXyn30A_WT.pdb G ./results"
+    echo "  $0 example.pdb A"
+    echo "  $0 example.pdb A results/results_example"
     echo ""
     echo -e "${BLUE}Database Location:${NC} /Volumes/const_2tb/consurf_databases/"
     echo -e "${BLUE}Conda Environment:${NC} $CONDA_ENV"
@@ -54,7 +55,14 @@ fi
 
 PDB_FILE="$1"
 CHAIN_ID="$2"
-OUTPUT_DIR="${3:-./consurf_output}"
+
+# Auto-generate output directory if not provided
+if [ -z "$3" ]; then
+    PDB_BASENAME=$(basename "$PDB_FILE" .pdb)
+    OUTPUT_DIR="./results/results_${PDB_BASENAME}"
+else
+    OUTPUT_DIR="$3"
+fi
 
 # Check if PDB file exists
 if [ ! -f "$PDB_FILE" ]; then

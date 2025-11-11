@@ -80,124 +80,50 @@ def query_uniprot_batch(ids, batch_size=100):
     
     return results
 
-def categorize_sequences(results):
-    """Categorize sequences by characterization level."""
-    categories = {
-        'reviewed': [],  # Swiss-Prot reviewed entries
-        'well_studied': [],  # Has publications (5+)
-        'characterized': [],  # Has EC number or specific function name
-        'uncharacterized': []  # Generic names or no info
-    }
-    
-    generic_terms = ['uncharacterized', 'hypothetical', 'predicted', 'putative', 
-                     'domain-containing', 'family protein']
-    
-    for acc, info in results.items():
-        if info['reviewed']:
-            categories['reviewed'].append((acc, info))
-        elif info['pub_count'] >= 5:
-            categories['well_studied'].append((acc, info))
-        elif info['ec'] or not any(term.lower() in info['protein_name'].lower() 
-                                   for term in generic_terms):
-            categories['characterized'].append((acc, info))
-        else:
-            categories['uncharacterized'].append((acc, info))
-    
-    return categories
-
-def generate_report(ids, results, categories, detailed=False):
+def generate_report(ids, results, detailed=False):
     """Generate a text report from analysis results."""
     output_lines = []
     output_lines.append("=" * 80)
-    output_lines.append("CHARACTERIZED ENZYME ANALYSIS")
+    output_lines.append("ENZYME CHARACTERIZATION ANALYSIS")
     output_lines.append("=" * 80)
     output_lines.append(f"Total sequences: {len(ids)}")
     output_lines.append(f"Sequences with UniProt data: {len(results)}")
     output_lines.append("")
     
-    # Reviewed (Swiss-Prot) entries
-    output_lines.append(f"REVIEWED ENTRIES (Swiss-Prot): {len(categories['reviewed'])}")
-    output_lines.append("-" * 80)
-    if categories['reviewed']:
-        for acc, info in sorted(categories['reviewed'], key=lambda x: x[1]['protein_name']):
-            output_lines.append(f"{acc}")
-            output_lines.append(f"  Name: {info['protein_name']}")
-            output_lines.append(f"  Organism: {info['organism']}")
-            if info['ec']:
-                output_lines.append(f"  EC: {info['ec']}")
-            if info['gene']:
-                output_lines.append(f"  Gene: {info['gene']}")
-            if info['pub_count'] > 0:
-                output_lines.append(f"  Publications: {info['pub_count']}")
-                if detailed and info['pubmed_ids'][:5]:
-                    output_lines.append(f"    PubMed IDs: {', '.join(info['pubmed_ids'][:5])}")
-                    if info['pub_count'] > 5:
-                        output_lines.append(f"    ... and {info['pub_count'] - 5} more")
-            output_lines.append("")
-    else:
-        output_lines.append("  None found")
-        output_lines.append("")
+    # Count statistics
+    reviewed_count = sum(1 for info in results.values() if info['reviewed'])
+    with_ec = sum(1 for info in results.values() if info['ec'])
+    with_pubs = sum(1 for info in results.values() if info['pub_count'] > 0)
     
-    # Well-studied (has significant publications)
-    output_lines.append(f"WELL-STUDIED (5+ publications): {len(categories['well_studied'])}")
+    output_lines.append("SUMMARY STATISTICS")
     output_lines.append("-" * 80)
-    if categories['well_studied']:
-        # Sort by publication count (most studied first)
-        for acc, info in sorted(categories['well_studied'], key=lambda x: x[1]['pub_count'], reverse=True):
-            output_lines.append(f"{acc}: {info['protein_name']}")
-            if info['ec']:
-                output_lines.append(f"  EC: {info['ec']}")
-            output_lines.append(f"  Publications: {info['pub_count']}")
-            if detailed and info['pubmed_ids'][:5]:
-                output_lines.append(f"  PubMed IDs: {', '.join(info['pubmed_ids'][:5])}")
-                if info['pub_count'] > 5:
-                    output_lines.append(f"  ... and {info['pub_count'] - 5} more")
-            output_lines.append(f"  Organism: {info['organism']}")
-            output_lines.append("")
-    else:
-        output_lines.append("  None found")
-        output_lines.append("")
-    
-    # Characterized (has EC or specific name)
-    output_lines.append(f"LIKELY CHARACTERIZED: {len(categories['characterized'])}")
-    output_lines.append("-" * 80)
-    if detailed and categories['characterized']:
-        for acc, info in sorted(categories['characterized'], key=lambda x: x[1]['protein_name']):
-            output_lines.append(f"{acc}: {info['protein_name']}")
-            if info['ec']:
-                output_lines.append(f"  EC: {info['ec']}")
-            if info['pub_count'] > 0:
-                output_lines.append(f"  Publications: {info['pub_count']}")
-    else:
-        output_lines.append(f"  {len(categories['characterized'])} sequences found")
-        output_lines.append("  (use --detailed to see full list)")
+    output_lines.append(f"Reviewed (Swiss-Prot): {reviewed_count}")
+    output_lines.append(f"With EC number: {with_ec}")
+    output_lines.append(f"With publications: {with_pubs}")
     output_lines.append("")
     
-    # Uncharacterized
-    output_lines.append(f"UNCHARACTERIZED/PREDICTED: {len(categories['uncharacterized'])}")
+    # List all sequences with their information
+    output_lines.append("SEQUENCE INFORMATION")
     output_lines.append("-" * 80)
-    if detailed and categories['uncharacterized']:
-        for acc, info in categories['uncharacterized']:
-            output_lines.append(f"{acc}: {info['protein_name']}")
-    else:
-        output_lines.append(f"  {len(categories['uncharacterized'])} sequences")
-    output_lines.append("")
     
-    # Summary statistics
-    output_lines.append("=" * 80)
-    output_lines.append("SUMMARY")
-    output_lines.append("=" * 80)
-    total_with_data = len(results)
-    if total_with_data > 0:
-        reviewed_pct = len(categories['reviewed']) / total_with_data * 100
-        well_studied_pct = len(categories['well_studied']) / total_with_data * 100
-        char_pct = len(categories['characterized']) / total_with_data * 100
-        unchar_pct = len(categories['uncharacterized']) / total_with_data * 100
-        
-        output_lines.append(f"Reviewed (Swiss-Prot):     {len(categories['reviewed']):4d} ({reviewed_pct:5.1f}%)")
-        output_lines.append(f"Well-studied (5+ pubs):    {len(categories['well_studied']):4d} ({well_studied_pct:5.1f}%)")
-        output_lines.append(f"Likely characterized:      {len(categories['characterized']):4d} ({char_pct:5.1f}%)")
-        output_lines.append(f"Uncharacterized/predicted: {len(categories['uncharacterized']):4d} ({unchar_pct:5.1f}%)")
+    for acc in sorted(results.keys()):
+        info = results[acc]
+        output_lines.append(f"{acc}")
+        output_lines.append(f"  Name: {info['protein_name']}")
+        output_lines.append(f"  Organism: {info['organism']}")
+        output_lines.append(f"  Reviewed: {'Yes' if info['reviewed'] else 'No'}")
+        if info['ec']:
+            output_lines.append(f"  EC: {info['ec']}")
+        if info['gene']:
+            output_lines.append(f"  Gene: {info['gene']}")
+        output_lines.append(f"  Length: {info['length']} aa")
+        output_lines.append(f"  Publications: {info['pub_count']}")
+        if detailed and info['pubmed_ids']:
+            pubmed_display = info['pubmed_ids'][:10]
+            output_lines.append(f"    PubMed IDs: {', '.join(pubmed_display)}")
+            if info['pub_count'] > 10:
+                output_lines.append(f"    ... and {info['pub_count'] - 10} more")
+        output_lines.append("")
     
     return '\n'.join(output_lines)
 
@@ -213,8 +139,7 @@ def analyze_single_fasta(fasta_file, output_file=None, detailed=False):
     results = query_uniprot_batch(ids)
     print(f"Retrieved information for {len(results)}/{len(ids)} sequences")
     
-    categories = categorize_sequences(results)
-    report = generate_report(ids, results, categories, detailed)
+    report = generate_report(ids, results, detailed)
     
     # Determine output file location
     if output_file is None:
@@ -225,7 +150,7 @@ def analyze_single_fasta(fasta_file, output_file=None, detailed=False):
     Path(output_file).write_text(report)
     print(f"\n✓ Report saved to: {output_file}")
     
-    return categories
+    return results
 
 def analyze_all_fastas(base_dir, detailed=False):
     """Find and analyze all sequences.fasta files in amino_acids_analysis_results.
@@ -289,17 +214,20 @@ def analyze_all_fastas(base_dir, detailed=False):
             # Filter results for this specific file
             file_results = {id: all_results[id] for id in ids if id in all_results}
             
-            # Categorize and generate report
-            categories = categorize_sequences(file_results)
-            report = generate_report(ids, file_results, categories, detailed)
+            # Generate report
+            report = generate_report(ids, file_results, detailed)
             
             # Save report next to FASTA file
             output_file = fasta_file.parent / "enzyme_characterization_report.txt"
             Path(output_file).write_text(report)
             
+            # Count statistics for display
+            reviewed = sum(1 for info in file_results.values() if info['reviewed'])
+            with_ec = sum(1 for info in file_results.values() if info['ec'])
+            with_pubs = sum(1 for info in file_results.values() if info['pub_count'] > 0)
+            
             print(f"  ✓ Report saved: {output_file.relative_to(base_path)}")
-            print(f"    Reviewed: {len(categories['reviewed'])}, Well-studied: {len(categories['well_studied'])}, "
-                  f"Characterized: {len(categories['characterized'])}, Uncharacterized: {len(categories['uncharacterized'])}")
+            print(f"    Total: {len(file_results)}, Reviewed: {reviewed}, With EC: {with_ec}, With pubs: {with_pubs}")
             
         except Exception as e:
             print(f"  ✗ Error generating report: {e}")
@@ -334,21 +262,22 @@ def main():
             print(f"Error: File not found: {fasta_file}")
             return 1
         
-        categories = analyze_single_fasta(fasta_file, args.output, args.detailed)
+        results = analyze_single_fasta(fasta_file, args.output, args.detailed)
+        
+        # Count statistics
+        reviewed = sum(1 for info in results.values() if info['reviewed'])
+        with_pubs = sum(1 for info in results.values() if info['pub_count'] > 0)
         
         # Return status
-        if categories['reviewed']:
-            print(f"\n✓ Found {len(categories['reviewed'])} reviewed enzyme(s)")
+        if reviewed > 0:
+            print(f"\n✓ Found {reviewed} reviewed (Swiss-Prot) entry/entries")
             return 0
-        elif categories['well_studied']:
-            print(f"\n✓ Found {len(categories['well_studied'])} well-studied enzyme(s)")
-            return 0
-        elif categories['characterized']:
-            print(f"\n✓ Found {len(categories['characterized'])} likely characterized enzyme(s)")
+        elif with_pubs > 0:
+            print(f"\n✓ Found {with_pubs} entry/entries with publications")
             return 0
         else:
-            print("\n✗ No clearly characterized enzymes found")
-            return 1
+            print("\n✓ Analysis complete")
+            return 0
 
 if __name__ == '__main__':
     import sys
