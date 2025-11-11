@@ -172,46 +172,51 @@ Query UniProt to determine if sequences are from characterized enzymes:
 
 This script:
 - Extracts UniProt IDs from FASTA headers
-- Queries UniProt API in batches (optimized)
-- Analyzes unique proteins from all sequence files
-- Retrieves protein names and publication counts
-- Categorizes sequences by characterization level
+- Queries UniProt API in batches (optimized, ~100 IDs per batch)
+- Collects data from all unique proteins across all files
+- Retrieves: protein names, EC numbers, gene names, organism, publications
+- Generates simplified reports without manual classification
 - Takes ~2-5 minutes for complete analysis
 
 **Output**: Creates `enzyme_characterization_report.txt` next to each `sequences.fasta`:
 
 ```
-=================================================================
-ENZYME CHARACTERIZATION REPORT
-=================================================================
-Analysis Date: 2025-11-11 10:45:23
-Total Sequences: 50
+================================================================================
+ENZYME CHARACTERIZATION ANALYSIS
+================================================================================
+Total sequences: 64
+Sequences with UniProt data: 63
 
-SUMMARY
------------------------------------------------------------------
-Reviewed (Swiss-Prot):     0 sequences  (0.0%)
-Well-studied (5+ pubs):    0 sequences  (0.0%)
-Characterized:            45 sequences (90.0%)
-Uncharacterized:           5 sequences (10.0%)
+SUMMARY STATISTICS
+--------------------------------------------------------------------------------
+Reviewed (Swiss-Prot): 0
+With EC number: 33
+With publications: 14
 
-DETAILED RESULTS
------------------------------------------------------------------
+SEQUENCE INFORMATION
+--------------------------------------------------------------------------------
+A0A084R156
+  Name: Carboxylic ester hydrolase (EC 3.1.1.-)
+  Organism: Stachybotrys chlorohalonatus (strain IBT 40285)
+  Reviewed: No
+  EC: 3.1.1.-
+  Gene: S40285_03903
+  Length: 526 aa
+  Publications: 1
+    PubMed IDs: 25015739
 
-CHARACTERIZED PROTEINS (45):
-tr|A0A1D8PFG7|A0A1D8PFG7_CANAL    Glucan 1,3-beta-glucosidase (Pubs: 0)
-tr|A0A286XZ89|A0A286XZ89_9PEZI    Glucan endo-1,3-beta-glucosidase (Pubs: 2)
-...
+A0A0D8ZRK9
+  Name: Feruloyl esterase
+  Organism: Aliterella atlantica CENA595
+  Reviewed: No
+  Gene: UH38_15085
+  Length: 559 aa
+  Publications: 0
 
-UNCHARACTERIZED PROTEINS (5):
-tr|A0A0D2YZ45|A0A0D2YZ45_9ASCO    Uncharacterized protein (Pubs: 0)
-...
+[... continues for all sequences ...]
 ```
 
-**Categories**:
-- **Reviewed (Swiss-Prot)**: Manually curated, high confidence
-- **Well-studied (5+ publications)**: Extensively researched
-- **Characterized**: Has protein name, may have 0-4 publications
-- **Uncharacterized**: No functional annotation
+**Tip**: Reports are sorted alphabetically by UniProt ID. Use summary statistics to quickly assess how well-characterized the sequences are at each position.
 
 #### Step 6: Generate PyMOL Visualization
 
@@ -243,17 +248,17 @@ pymol results/results_example/consurf_session.pse
 
 ### Complete Run Summary
 
-For a typical protein (549 amino acids):
+For a typical protein (508 amino acids, 150 sequences in MSA):
 
 | Step | Time | Key Outputs |
 |------|------|-------------|
 | 1. Setup Databases | 15-30 min | Database files formatted for BLAST |
 | 2. Verify Setup | 1 min | Confirmation all tools installed |
-| 3. ConSurf Analysis | 40-60 min | Conservation scores, MSA, tree |
-| 4. Position Analysis | 5-10 min | Position folders with FASTA files |
-| 5. Enzyme Check | 2-5 min | Characterization reports |
-| 6. PyMOL Session | 30 sec | Visual conservation mapping |
-| **Total** | **~1-2 hours** | **Complete evolutionary analysis** |
+| 3. ConSurf Analysis | 40-60 min | Conservation scores, MSA (150 seqs), tree |
+| 4. Position Analysis | 5-10 min | 528 position folders with grouped FASTA files |
+| 5. Enzyme Check | 3-5 min | 6,426 characterization reports (147 unique proteins) |
+| 6. PyMOL Session | 30 sec | Visual conservation mapping with color scale |
+| **Total** | **~1-2 hours** | **Complete evolutionary analysis + visualization** |
 
 ### Understanding the Results
 
@@ -269,9 +274,14 @@ For a typical protein (549 amino acids):
 - Chemical property bias (e.g., all charged) = functional constraint
 
 **Characterization Reports**:
-- Use to identify sequences from well-studied vs. uncharacterized organisms
-- Filter by publication count for comparative studies
-- Cross-reference with known mutants or variants
+- **Summary Statistics**: Quick counts of reviewed entries, EC numbers, and publications
+- **Alphabetical Listing**: All sequences with complete UniProt data
+- **Key Fields**: Name, organism, reviewed status, EC number, gene, length, publications
+- **Use Cases**: 
+  - Identify well-studied vs. novel sequences
+  - Filter by EC numbers for functional classification
+  - Cross-reference PubMed IDs for mutational studies
+  - Track characterized homologs at variable positions
 
 ## Quick Start Example
 
