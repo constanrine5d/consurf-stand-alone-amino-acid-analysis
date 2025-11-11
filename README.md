@@ -651,6 +651,7 @@ The `results/results_example` folder contains a complete example analysis with r
 
 ### Original ConSurf
 - Original Repo: https://github.com/Rostlab/ConSurf
+- Forked from: https://github.com/leezx/ConSurf-StandAlone
 
 ### Enhanced Analysis Pipeline
 - Author: Konstantinos Grigorakis
