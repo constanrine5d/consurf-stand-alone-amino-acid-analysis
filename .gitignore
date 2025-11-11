@@ -27,14 +27,21 @@ env/
 *.swo
 *~
 
+# PDB files (except example.pdb)
+*.pdb
+!example.pdb
+
+# MODRES files
+*.MODRES
+
+# Results directories (except results/results_example)
+results/
+!results/results_example/
+!results/results_example/**
+
 # Results and outputs
-results_*/
 amino_acids_analysis_results/
 *.log
-
-# Example data (kept in example/ folder)
-example/results_*/
-example/amino_acids_analysis_results/
 
 # Database files (too large for git)
 *.fasta
