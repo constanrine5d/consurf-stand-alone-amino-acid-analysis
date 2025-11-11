@@ -5,29 +5,29 @@
 
 ConSurf evolutionary conservation analysis with added amino acid distribution analysis and sequence grouping.
 
-**Note**: This repository was created with AI assistance ("vibe-coded") and may contain errors or incomplete configurations. It is intended for personal/research use only. Please verify all settings and paths for your specific environment before use.
-
 ## What's New
 
 - Amino acid distribution analysis at specific positions
 - Automated sequence grouping by amino acid into FASTA files
-- Organized folder structure: `position_X/covered/1_AA_60.0/sequences.fasta`
 - Batch processing for single, multiple, or all positions
-- Enzyme characterization check using UniProt API
+- Enzyme **characterization check** for each amino acid position using UniProt API
 - Numbered workflow scripts (1-5) for easy execution order
 
 ## Complete Workflow Guide
 
 ### Prerequisites
 
+This repo is optimised for running on an Apple Silicon Mac and has not been checked on Linux, but should probably work fine.
+
 Before starting, ensure you have:
 
 1. **Conda environment** with bioinformatics tools:
    - hmmer, clustalw, cd-hit, mafft, muscle
    - Python 3.10+ with biopython and requests
+   - Check below for detailed `environment.yml`
 
 2. **Database setup**: 
-   - Edit `DB_DIR` variable in `1_setup_databases.sh` if databases are not at `/Volumes/const_2tb/consurf_databases`
+   - Edit `DB_DIR` variable in `1_setup_databases.sh` to point at your database.
    - Or skip script 1 if databases are already set up
 
 3. **PDB file**: Your protein structure file (e.g., `protein.pdb`)
@@ -110,12 +110,14 @@ This script:
 **Output files**:
 ```
 results/results_example/
-├── consurf_grades.txt          # Conservation scores (1-9)
-├── msa_fasta.aln              # Multiple sequence alignment
-├── r4s.res                    # Rate4Site results
-├── TheTree.txt                # Phylogenetic tree
-├── query_final_homolougs.fasta # Selected sequences
-└── example_With_Conservation_Scores.pdb  # Annotated PDB
+├── amino_acids_analysis_results/         # Position-specific AA distributions
+├── consurf_session.pse                   # PyMOL session with conservation coloring
+├── consurf_grades.txt                    # Conservation scores (1-9)
+├── example_With_Conservation_Scores.pdb  # Annotated PDB
+├── msa_fasta.aln                         # Multiple sequence alignment
+├── r4s.res                               # Rate4Site results
+├── TheTree.txt                           # Phylogenetic tree
+└── query_final_homolougs.fasta           # Selected sequences
 ```
 
 #### Step 4: Analyze Amino Acid Distribution
@@ -125,6 +127,8 @@ Analyze amino acid variability at each position:
 ```bash
 # Analyze all positions (recommended)
 ./4_analyze_position.sh results/results_example
+#or
+./4_analyze_position.sh results/results_example all
 
 # Or analyze specific positions
 ./4_analyze_position.sh results/results_example 226        # Single position
@@ -136,7 +140,7 @@ This script:
 - Calculates amino acid distribution at each position
 - Groups sequences by amino acid into separate FASTA files
 - Creates organized folder structure
-- Takes ~5-10 minutes for all positions
+- Takes <1 minute for all positions
 
 **Output structure**:
 ```
@@ -176,7 +180,7 @@ This script:
 - Collects data from all unique proteins across all files
 - Retrieves: protein names, EC numbers, gene names, organism, publications
 - Generates simplified reports without manual classification
-- Takes ~2-5 minutes for complete analysis
+- Takes <1 minute for complete analysis
 
 **Output**: Creates `enzyme_characterization_report.txt` next to each `sequences.fasta`:
 
@@ -229,16 +233,30 @@ Create a PyMOL session with ConSurf conservation coloring:
 This script:
 - Loads PDB structure with conservation scores
 - Applies ConSurf color scale (turquoise → white → purple)
-- Creates cartoon representation
-- Adds visual color scale legend
+- Creates cartoon representation with black background
+- Adds visual color scale legend (pseudoatoms as spheres)
+- Maps conservation grades to all residues with data
 - Takes ~30 seconds
 
 **Output**: Creates `consurf_session.pse` in results directory
+
+**PyMOL Session Features**:
+- **Conservation Coloring**: Each residue colored by grade (1-9)
+  - Grade 9 (Purple, #7D26CD): Highly conserved
+  - Grade 5 (White, #FFFFFF): Average conservation
+  - Grade 1 (Turquoise, #16E4E4): Variable
+  - Insufficient data (Gray, 80% opacity)
+- **Visual Legend**: Color scale displayed on right side
+  - Labeled spheres for each grade
+  - Easy reference while exploring structure
+- **Optimized View**: Cartoon representation, black background
+- **Ready to Use**: Open directly in PyMOL, no additional setup
 
 **To view**:
 ```bash
 pymol results/results_example/consurf_session.pse
 ```
+or just drag and drop the `consurf_session.pse` file into PyMOL.
 
 **Color Scale**:
 - Grade 9 (Purple) → Highly Conserved
@@ -313,11 +331,11 @@ See **[Complete Workflow Guide](#complete-workflow-guide)** above for detailed s
 
 **Basic workflow**:
 ```bash
-./2_verify_setup.sh                                # Verify installation
-./3_run_consurf_complete.sh protein.pdb A          # Run ConSurf (auto: results/results_protein)
-./4_analyze_position.sh results/results_protein    # Analyze all positions
+./2_verify_setup.sh                                         # Verify installation
+./3_run_consurf_complete.sh protein.pdb A                   # Run ConSurf (auto: results/results_protein)
+./4_analyze_position.sh results/results_protein             # Analyze all positions
 ./5_check_characterized_enzymes.sh results/results_protein  # Check characterization
-./6_generate_pymol_session.sh results/results_protein      # Create visualization
+./6_generate_pymol_session.sh results/results_protein       # Create visualization
 ```
 
 **Individual script options**:
@@ -350,25 +368,71 @@ results/results_example/amino_acids_analysis_results/
 
 ```
 .
-├── analyze_position.py           # Core analysis tool
-├── check_characterized_enzymes.py # UniProt enzyme checker
-├── 1_setup_databases.sh          # Database setup
-├── 2_verify_setup.sh             # Verify installation
-├── 3_run_consurf_complete.sh     # Run ConSurf
-├── 4_analyze_position.sh         # Analyze positions
-├── 5_check_characterized_enzymes.sh # Check enzyme status
-├── bin/                          # Pre-compiled binaries
-├── stand_alone_consurf-1.00/     # ConSurf scripts
-├── environment.yml               # Conda environment export
-└── example/                      # Example data (TtXyn30A)
+├── 1_setup_databases.sh                    # Database setup
+├── 2_verify_setup.sh                       # Verify installation
+├── 3_run_consurf_complete.sh               # Run ConSurf analysis
+├── 4_analyze_position.sh                   # Analyze amino acid distributions
+├── 5_check_characterized_enzymes.sh        # Check enzyme characterization
+├── 6_generate_pymol_session.sh             # Generate PyMOL visualization
+├── libraries/                              # Python analysis scripts
+│   ├── analyze_position.py                 # Core position analysis
+│   └── check_characterized_enzymes.py      # UniProt enzyme checker
+├── bin/                                    # Pre-compiled binaries (rate4site, consurf)
+├── stand_alone_consurf-1.00/               # ConSurf core scripts
+├── results/                                # Analysis outputs
+│   └── results_example/                    # Complete example (tracked in git)
+│       ├── consurf_session.pse             # PyMOL session file
+│       ├── consurf_grades.txt              # Conservation scores
+│       ├── amino_acids_analysis_results/   # Position-specific analyses
+│       └── ...                             # Other ConSurf outputs
+└── example.pdb                             # Example protein structure
 ```
 
 ## Requirements
 
 - Python 3.10+
-- Conda environment with: hmmer, clustalw, cd-hit, mafft, muscle, biopython
+- Conda environment with: hmmer, clustalw, cd-hit, mafft, muscle, biopython, pymol
 - Python packages: requests (for UniProt API queries)
+
+**To create the conda environment from the provided configuration:**
+
+```bash
+# Save the environment.yml below to a file, then:
+conda env create -f environment.yml
+
+# Activate the environment:
+conda activate python3.10bio
 ```
+
+### Environment Configuration (Minimal)
+
+**Essential packages only** - conda will resolve all dependencies automatically:
+
+```yaml
+name: python3.10bio
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - biopython
+  - hmmer
+  - clustalw
+  - cd-hit
+  - mafft
+  - muscle
+  - pymol-open-source
+  - pip
+  - pip:
+      - requests
+      - tqdm
+```
+
+<details>
+<summary><b>Full environment specification</b> (click to expand - for reproducibility)</summary>
+
+```yaml
 name: python3.10bio
 channels:
   - conda-forge
@@ -564,25 +628,38 @@ dependencies:
       - tomli==2.2.1
       - tqdm==4.67.1
       - tzdata==2025.2
-      - urllib3==2.4.0
+            - urllib3==2.4.0
 ```
-- Rate4Site (binaries included for macOS ARM64)
-- UniRef90 database (~150GB)
 
+</details>
+
+**Note**: The minimal configuration is recommended for most users. The full specification is provided for exact reproducibility of the development environment.
+
+### Additional Requirements
+
+- Rate4Site (binaries included for macOS ARM64)
+- UniRef90 database (~96GB)
+ 
 See original repos for detailed installation instructions.
 
 ## Example Data
 
-The `example/` folder contains a complete TtXyn30A analysis with results.
+The `results/results_example` folder contains a complete example analysis with results for the [FoFAE C](https://doi.org/10.1002/1873-3468.13776) enzyme (PDB: [6FAT](https://www.rcsb.org/structure/6FAT)).
 
 ## Authors & Attribution
 
 ### Original ConSurf
 - Original Repo: https://github.com/Rostlab/ConSurf
 
-### Amino Acid Analysis Enhancement
+### Enhanced Analysis Pipeline
 - Author: Konstantinos Grigorakis
-- Contributions: Position analysis, sequence grouping, automated FASTA organization
+- Contributions:
+  - Complete 6-step local automated workflow (database setup → visualization)
+  - Position-specific amino acid distribution analysis with automated sequence grouping
+  - UniProt-based enzyme characterization system with batch API querying for the found sequences
+  - PyMOL session generation with traditional ConSurf color scale visualization
+
+**Note**: This repository was created in part with AI assistance ("vibe-coded") and may contain errors or incomplete configurations. It is intended for personal/research use only. Please verify all settings and paths for your specific environment before use.
 
 ## Citation
 
@@ -593,123 +670,3 @@ If using ConSurf, cite as per the original repo.
 - [ConSurf Web Server](https://consurf.tau.ac.il/)
 - [Rate4Site](https://www.tau.ac.il/~itaymay/cp/rate4site.html)
 - [UniProt UniRef](https://www.uniprot.org/help/uniref)
-
----
-
-## Amino Acid Distribution Analysis Feature
-
-### Overview
-
-The position analysis script automatically creates organized folder structures with FASTA files grouped by amino acid at each analyzed position.
-
-### Feature Description
-
-When analyzing any position, the script creates:
-
-```
-<RESULTS_DIR>/amino_acids_analysis_results/
-└── position_X_PDB_Y/
-    ├── not_covered/
-    │   └── sequences.fasta          # Sequences with gaps (-) at this position
-    └── covered/
-        ├── 1_AA_XX.X/
-        │   └── sequences.fasta      # Top amino acid with percentage
-        ├── 2_AA_XX.X/
-        │   └── sequences.fasta      # Second most common
-        └── ...                       # One folder per amino acid found
-```
-### Folder Naming Convention
-
-- **Base folder**: `position_{SEQ_POS}_{PDB_POSITION}`
-  - Example: `position_226_GLU_233_G`
-- **Amino acid folders**: `{RANK}_{AA}_{PERCENTAGE}`
-  - Example: `1_N_60.0` for the most common amino acid (N at 60%)
-
-### Use Cases
-
-1. **Mutation Analysis**: Extract sequences with specific amino acids for comparison
-2. **Variant Study**: Analyze sequences that differ from query at specific positions
-3. **Conservation Patterns**: Identify sequence groups with similar substitutions
-4. **Phylogenetic Analysis**: Group sequences by amino acid variants
-5. **Structural Biology**: Study sequences with similar/different residues at key positions
-
----
-
-## Position Analysis Tool Details
-
-### Configuration Options
-
-The shell script accepts the following options:
-
-| Option | Description | Required/Default |
-|--------|-------------|------------------|
-| `RESULTS_DIR` | Results directory (positional) | **Required** |
-| `-e, --env ENV` | Conda environment name | `python3.10bio` |
-| `-m, --msa FILE` | MSA file path | `<RESULTS_DIR>/msa_fasta.aln` |
-| `-g, --grades FILE` | Grades file path | `<RESULTS_DIR>/consurf_grades.txt` |
-| `-o, --output FILE` | Save output to file | (none) |
-
-### Output Format
-
-The analysis provides:
-
-1. **Position Information**
-   - Position in sequence (1-indexed)
-   - PDB position (e.g., GLU:233:G)
-   - Query amino acid
-
-2. **Amino Acid Distribution**
-   - Count and percentage of each amino acid
-   - Cumulative percentage
-   - Visual bar chart
-   - Query amino acid marked with ←
-
-3. **Chemical Properties Summary**
-   - Hydrophobic (A,V,I,L,M,F,Y,W)
-   - Polar uncharged (S,T,N,Q,C)
-   - Positively charged (K,R,H)
-   - Negatively charged (D,E)
-   - Special (G,P)
-
-### Interpreting Results
-
-- **High Percentage (>50%)**: Position is highly conserved
-- **Even Distribution**: Position is highly variable
-- **Chemical Property Dominance**: 
-  - Polar >60%: Surface-exposed, H-bonding important
-  - Hydrophobic >50%: Buried, core stability role
-  - Charged >40%: Catalytic site or binding pocket
-- **Query Amino Acid is Rare (<10%)**: Unusual residue, potential mutation site
-
-### ConSurf Sequence Selection
-
-**Current Setup (150 sequences)**:
-- Found by HMMER: ~160,000 sequences
-- After CD-HIT clustering (95% identity): ~4,000 unique sequences
-- Final MSA: 150 sequences (default limit)
-
-**Why 150 Sequences?**
-1. Computational efficiency
-2. Alignment quality
-3. Diminishing returns beyond ~150
-4. ConSurf webserver best practices
-
-**Using More Sequences:**
-```bash
-python stand_alone_consurf.py --MAX_HOMOLOGS 300
-# or
-python stand_alone_consurf.py --MAX_HOMOLOGS all
-```
-
-**Trade-offs:**
-- 150 (default): Fast (~3 min), good signal
-- 300-500: Better sampling, slower (6-10 min)
-- All (~4000): Complete sampling, very slow (30+ min)
-
-### Tips
-
-1. Conserved positions (grade 9) usually show >70% for one amino acid
-2. Variable positions (grade 1-3) show diverse distribution
-3. Active sites often show specific chemical property bias
-4. Interface residues may show alternating patterns
-
