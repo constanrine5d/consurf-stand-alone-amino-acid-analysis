@@ -111,21 +111,21 @@ fi
 echo ""
 echo -e "${YELLOW}Checking databases:${NC}"
 
-# Databases
+# Check protein databases
 UNIREF90_DB=$(grep "^UNIREF90_DB = " "$CONSTANTS_FILE" | head -1 | cut -d'"' -f2)
 if [ -f "$UNIREF90_DB" ]; then
     size=$(ls -lh "$UNIREF90_DB" | awk '{print $5}')
-    echo -e "${GREEN}✅ UNIREF90_DB:${NC} $UNIREF90_DB ($size)"
+    echo -e "${GREEN}✅ UniProt TrEMBL (unreviewed):${NC} $UNIREF90_DB ($size)"
 else
-    echo -e "${RED}✗ UNIREF90_DB NOT FOUND:${NC} $UNIREF90_DB"
+    echo -e "${RED}✗ UniProt TrEMBL NOT FOUND:${NC} $UNIREF90_DB"
 fi
 
 SWISSPROT_DB=$(grep "^SWISSPROT_DB = " "$CONSTANTS_FILE" | cut -d'"' -f2)
 if [ -f "$SWISSPROT_DB" ]; then
     size=$(ls -lh "$SWISSPROT_DB" | awk '{print $5}')
-    echo -e "${GREEN}✅ SWISSPROT_DB:${NC} $SWISSPROT_DB ($size)"
+    echo -e "${GREEN}✅ Swiss-Prot (reviewed):${NC} $SWISSPROT_DB ($size)"
 else
-    echo -e "${RED}✗ SWISSPROT_DB NOT FOUND:${NC} $SWISSPROT_DB"
+    echo -e "${RED}✗ Swiss-Prot NOT FOUND:${NC} $SWISSPROT_DB"
 fi
 
 echo ""

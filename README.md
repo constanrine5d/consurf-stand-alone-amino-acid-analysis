@@ -638,7 +638,8 @@ dependencies:
 ### Additional Requirements
 
 - Rate4Site (binaries included for macOS ARM64)
-- UniRef90 database (~96GB)
+- UniProt TrEMBL database (~94GB uncompressed)
+- Swiss-Prot database (~273MB uncompressed)
  
 See original repos for detailed installation instructions.
 

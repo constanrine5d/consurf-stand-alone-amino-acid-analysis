@@ -30,7 +30,7 @@ MAXIMUM_MODIFIED_PERCENT = 0.15
 
 SWISSPROT_DB = "/Volumes/const_2tb/consurf_databases/uniprot_sprot.fasta"
 UNIPROT_DB = "/Volumes/const_2tb/consurf_databases/uniprot_trembl.fasta"
-UNIREF90_DB = "/Volumes/const_2tb/consurf_databases/uniprot_trembl.fasta"
+UNIREF90_DB = "/Volumes/const_2tb/consurf_databases/uniprot_trembl.fasta"  # Default database: UniProt TrEMBL
 CLEAN_UNIPROT_DB = "/Volumes/const_2tb/consurf_databases/clean_uniprot.fasta"
 NR_PROT_DB = "/Volumes/const_2tb/consurf_databases/nr.fasta"
 
