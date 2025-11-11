@@ -13,51 +13,266 @@ ConSurf evolutionary conservation analysis with added amino acid distribution an
 - Automated sequence grouping by amino acid into FASTA files
 - Organized folder structure: `position_X/covered/1_AA_60.0/sequences.fasta`
 - Batch processing for single, multiple, or all positions
-- Numbered workflow scripts (1-4) for easy execution order
+- Enzyme characterization check using UniProt API
+- Numbered workflow scripts (1-5) for easy execution order
+
+## Complete Workflow Guide
+
+### Prerequisites
+
+Before starting, ensure you have:
+
+1. **Conda environment** with bioinformatics tools:
+   - hmmer, clustalw, cd-hit, mafft, muscle
+   - Python 3.10+ with biopython and requests
+
+2. **Database setup**: 
+   - Edit `DB_DIR` variable in `1_setup_databases.sh` if databases are not at `/Volumes/const_2tb/consurf_databases`
+   - Or skip script 1 if databases are already set up
+
+3. **PDB file**: Your protein structure file (e.g., `protein.pdb`)
+
+### Step-by-Step Execution
+
+#### Step 1: Setup Databases (Optional)
+
+If databases are not already configured:
+
+```bash
+# Edit the DB_DIR path in the script first
+nano 1_setup_databases.sh  # Change line 10: DB_DIR="/your/path/consurf_databases"
+
+# Then run
+./1_setup_databases.sh
+```
+
+This script:
+- Downloads Swiss-Prot database (~90MB compressed, ~300MB uncompressed)
+- Extracts TrEMBL database if present (optional, ~94GB)
+- Formats databases for BLAST searching
+- Takes 15-30 minutes depending on drive speed
+
+**Note**: You can skip this if databases are already set up elsewhere. Just ensure paths in `2_verify_setup.sh` match your setup.
+
+#### Step 2: Verify Installation
+
+```bash
+./2_verify_setup.sh
+```
+
+Checks for:
+- Python packages (biopython, requests, tqdm)
+- Alignment tools (CLUSTALW, MUSCLE, MAFFT)
+- HMMER tools (jackhmmer, hmmbuild, hmmsearch)
+- CD-HIT clustering tool
+- Rate4Site binary
+- Database files and sizes
+
+Expected output: All ✅ checks should pass. If any fail, install the missing tools.
+
+#### Step 3: Run ConSurf Analysis
+
+```bash
+./3_run_consurf_complete.sh <PDB_FILE> <CHAIN_ID> [OUTPUT_DIR]
+```
+
+Example:
+```bash
+./3_run_consurf_complete.sh ZcEst.pdb A ./results_final
+```
+
+This script:
+- Activates conda environment automatically
+- Runs BLAST/HMMER search against protein databases
+- Performs CD-HIT clustering at 95% identity
+- Selects top 150 sequences (default, configurable)
+- Builds multiple sequence alignment (MSA)
+- Calculates conservation scores with Rate4Site
+- Generates ConSurf grades (1-9, where 9 = highly conserved)
+- Takes ~40-60 minutes for a typical protein
+
+**Output files**:
+```
+results_final/
+├── consurf_grades.txt          # Conservation scores (1-9)
+├── msa_fasta.aln              # Multiple sequence alignment
+├── r4s.res                    # Rate4Site results
+├── TheTree.txt                # Phylogenetic tree
+├── query_final_homolougs.fasta # Selected sequences
+└── ZcEst_With_Conservation_Scores.pdb  # Annotated PDB
+```
+
+#### Step 4: Analyze Amino Acid Distribution
+
+Analyze amino acid variability at each position:
+
+```bash
+# Analyze all positions (recommended)
+./4_analyze_position.sh --all
+
+# Or analyze specific positions
+./4_analyze_position.sh 226        # Single position
+./4_analyze_position.sh 226 227 228  # Multiple positions
+```
+
+This script:
+- Reads MSA and conservation grades
+- Calculates amino acid distribution at each position
+- Groups sequences by amino acid into separate FASTA files
+- Creates organized folder structure
+- Takes ~5-10 minutes for all positions
+
+**Output structure**:
+```
+results_final/amino_acids_analysis_results/
+├── position_1_MET_1_A/
+│   ├── not_covered/
+│   │   └── sequences.fasta           # Sequences with gaps (-)
+│   └── covered/
+│       ├── 1_M_85.2/                # 85.2% have Methionine
+│       │   └── sequences.fasta       # 186 sequences
+│       ├── 2_L_7.4/                 # 7.4% have Leucine
+│       │   └── sequences.fasta       # 16 sequences
+│       └── ...
+├── position_2_SER_2_A/
+└── ...
+```
+
+**Folder naming convention**:
+- Position folder: `position_{SEQ_POS}_{PDB_AA}_{PDB_NUM}_{CHAIN}`
+- Amino acid folder: `{RANK}_{AA}_{PERCENTAGE}`
+
+#### Step 5: Check Enzyme Characterization
+
+Query UniProt to determine if sequences are from characterized enzymes:
+
+```bash
+# Analyze all sequences.fasta files recursively
+./5_check_characterized_enzymes.sh
+
+# Or analyze a specific file
+./5_check_characterized_enzymes.sh path/to/sequences.fasta
+```
+
+This script:
+- Extracts UniProt IDs from FASTA headers
+- Queries UniProt API in batches (optimized)
+- Analyzes 297 unique proteins from 6,036 files (in our test)
+- Retrieves protein names and publication counts
+- Categorizes sequences by characterization level
+- Takes ~2-5 minutes for complete analysis
+
+**Output**: Creates `enzyme_characterization_report.txt` next to each `sequences.fasta`:
+
+```
+=================================================================
+ENZYME CHARACTERIZATION REPORT
+=================================================================
+Analysis Date: 2025-11-11 10:45:23
+Total Sequences: 50
+
+SUMMARY
+-----------------------------------------------------------------
+Reviewed (Swiss-Prot):     0 sequences  (0.0%)
+Well-studied (5+ pubs):    0 sequences  (0.0%)
+Characterized:            45 sequences (90.0%)
+Uncharacterized:           5 sequences (10.0%)
+
+DETAILED RESULTS
+-----------------------------------------------------------------
+
+CHARACTERIZED PROTEINS (45):
+tr|A0A1D8PFG7|A0A1D8PFG7_CANAL    Glucan 1,3-beta-glucosidase (Pubs: 0)
+tr|A0A286XZ89|A0A286XZ89_9PEZI    Glucan endo-1,3-beta-glucosidase (Pubs: 2)
+...
+
+UNCHARACTERIZED PROTEINS (5):
+tr|A0A0D2YZ45|A0A0D2YZ45_9ASCO    Uncharacterized protein (Pubs: 0)
+...
+```
+
+**Categories**:
+- **Reviewed (Swiss-Prot)**: Manually curated, high confidence
+- **Well-studied (5+ publications)**: Extensively researched
+- **Characterized**: Has protein name, may have 0-4 publications
+- **Uncharacterized**: No functional annotation
+
+### Complete Run Summary
+
+For a typical protein (e.g., ZcEst, 549 amino acids):
+
+| Step | Time | Key Outputs |
+|------|------|-------------|
+| 1. Setup Databases | 15-30 min | Database files formatted for BLAST |
+| 2. Verify Setup | 1 min | Confirmation all tools installed |
+| 3. ConSurf Analysis | 40-60 min | Conservation scores, MSA, tree |
+| 4. Position Analysis | 5-10 min | 549 position folders, 6,036 FASTA files |
+| 5. Enzyme Check | 2-5 min | 6,036 characterization reports |
+| **Total** | **~1-2 hours** | **Complete evolutionary analysis** |
+
+### Understanding the Results
+
+**Conservation Grades (1-9)**:
+- **9**: Highly conserved (≤10% variability) - likely functionally critical
+- **7-8**: Moderately conserved - potentially important for structure/function  
+- **4-6**: Variable - may be surface-exposed or adaptable
+- **1-3**: Highly variable - likely not functionally constrained
+
+**Amino Acid Distribution**:
+- High percentage (>70%) for one AA = highly conserved position
+- Even distribution = highly variable position
+- Chemical property bias (e.g., all charged) = functional constraint
+
+**Characterization Reports**:
+- Use to identify sequences from well-studied vs. uncharacterized organisms
+- Filter by publication count for comparative studies
+- Cross-reference with known mutants or variants
+
+## Quick Start Example
+
+```bash
+# 1. Verify everything is installed
+./2_verify_setup.sh
+
+# 2. Run complete analysis on your protein
+./3_run_consurf_complete.sh my_protein.pdb A ./results_final
+
+# 3. Analyze all positions
+./4_analyze_position.sh --all
+
+# 4. Check enzyme characterization
+./5_check_characterized_enzymes.sh
+
+# 5. Explore results
+cd results_final/amino_acids_analysis_results/
+ls -l  # See all position folders
+```
 
 ## Usage
 
-### Workflow Scripts
+See **[Complete Workflow Guide](#complete-workflow-guide)** above for detailed step-by-step instructions.
 
-Execute in order:
+### Quick Reference
 
-1. `1_setup_databases.sh` - Setup databases
-2. `2_verify_setup.sh` - Verify installation of all modules
-3. `3_run_consurf_complete.sh` - Run ConSurf analysis
-4. `4_analyze_position.sh` - Analyze amino acid distribution
-5. `5_check_characterized_enzymes.sh` - Check enzyme characterization status
-
-### Amino Acid Analysis
-
+**Basic workflow**:
 ```bash
-# Analyze single position
-./4_analyze_position.sh 226
-
-# Analyze multiple positions
-./4_analyze_position.sh 226 227 228
-
-# Analyze all positions
-./4_analyze_position.sh --all
+./2_verify_setup.sh                              # Verify installation
+./3_run_consurf_complete.sh protein.pdb A ./results_final  # Run ConSurf
+./4_analyze_position.sh --all                    # Analyze all positions
+./5_check_characterized_enzymes.sh               # Check characterization
 ```
 
-### Enzyme Characterization Check
-
-Query UniProt to check if sequences are from characterized enzymes:
-
+**Individual script options**:
 ```bash
-# Analyze all sequences.fasta files
-./5_check_characterized_enzymes.sh
+# Position analysis
+./4_analyze_position.sh 226          # Single position
+./4_analyze_position.sh 226 227 228  # Multiple positions
+./4_analyze_position.sh --all        # All positions (recommended)
 
-# Analyze specific folder
-./5_check_characterized_enzymes.sh path/to/folder/sequences.fasta
+# Enzyme characterization
+./5_check_characterized_enzymes.sh                        # All files
+./5_check_characterized_enzymes.sh path/to/sequences.fasta  # Specific file
 ```
-
-Output: Creates `enzyme_characterization_report.txt` in each folder with:
-- Reviewed (Swiss-Prot) entries
-- Well-studied proteins (5+ publications)
-- Characterized proteins (with names)
-- Uncharacterized proteins
-- PubMed publication counts for each protein
 
 ### Output Structure
 

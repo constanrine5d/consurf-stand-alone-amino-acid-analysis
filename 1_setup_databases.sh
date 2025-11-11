@@ -6,28 +6,35 @@
 
 set -e  # Exit on error
 
-# Configuration
+# Configuration - Change this path if needed
 DB_DIR="/Volumes/const_2tb/consurf_databases"
-SOURCE_DIR="/Users/constanrine5d/programs/ConSurf"
+SOURCE_DIR="$(pwd)"
 
 echo "==================================="
 echo "ConSurf Database Setup"
 echo "==================================="
 echo ""
 
-# Check for pv
-if ! command -v pv &> /dev/null; then
-    echo "⚠️  Warning: 'pv' not found. Installing for better progress bars..."
-    source /Users/constanrine5d/.zprofile
-    brew install pv
+# Check if database directory location exists
+if [ ! -d "$(dirname "$DB_DIR")" ]; then
+    echo "⚠️  ERROR: Database directory parent path not found: $(dirname "$DB_DIR")"
     echo ""
+    echo "Please update the DB_DIR variable in this script to point to your desired location."
+    echo "Edit line 10 of $0"
+    echo ""
+    echo "Current setting: DB_DIR=\"$DB_DIR\""
+    echo ""
+    exit 1
 fi
 
-# Check if external drive is mounted
-if [ ! -d "$EXTERNAL_DRIVE" ]; then
-    echo "ERROR: External drive not found at $EXTERNAL_DRIVE"
-    echo "Please mount your external drive and try again"
-    exit 1
+# Check for pv
+if ! command -v pv &> /dev/null; then
+    echo "⚠️  Warning: 'pv' not found. Progress bars will not be available."
+    echo "   To install: brew install pv"
+    echo ""
+    USE_PV=false
+else
+    USE_PV=true
 fi
 
 # Create database directory
@@ -56,9 +63,13 @@ if [ -f "${DB_DIR}/uniprot_trembl.fasta" ]; then
     EXISTING_SIZE=$(du -h "${DB_DIR}/uniprot_trembl.fasta" | cut -f1)
     echo "✓ File already exists (${EXISTING_SIZE}), skipping extraction"
 else
-    echo "Starting extraction with progress bar..."
+    echo "Starting extraction..."
     echo ""
-    pv -pterb "${SOURCE_DIR}/uniprot_trembl.fasta.gz" | gunzip > "${DB_DIR}/uniprot_trembl.fasta"
+    if [ "$USE_PV" = true ]; then
+        pv -pterb "${SOURCE_DIR}/uniprot_trembl.fasta.gz" | gunzip > "${DB_DIR}/uniprot_trembl.fasta"
+    else
+        gunzip -c "${SOURCE_DIR}/uniprot_trembl.fasta.gz" > "${DB_DIR}/uniprot_trembl.fasta"
+    fi
     echo ""
     FINAL_SIZE=$(du -h "${DB_DIR}/uniprot_trembl.fasta" | cut -f1)
     echo "✓ Extraction complete! Final size: ${FINAL_SIZE}"
@@ -71,9 +82,13 @@ echo "STEP 2/3: Swiss-Prot Database"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 if [ -f "${DB_DIR}/uniprot_sprot.fasta.gz" ]; then
-    echo "Found compressed file, extracting with progress bar..."
+    echo "Found compressed file, extracting..."
     echo ""
-    pv -pterb "${DB_DIR}/uniprot_sprot.fasta.gz" | gunzip > "${DB_DIR}/uniprot_sprot.fasta"
+    if [ "$USE_PV" = true ]; then
+        pv -pterb "${DB_DIR}/uniprot_sprot.fasta.gz" | gunzip > "${DB_DIR}/uniprot_sprot.fasta"
+    else
+        gunzip -c "${DB_DIR}/uniprot_sprot.fasta.gz" > "${DB_DIR}/uniprot_sprot.fasta"
+    fi
     echo ""
     SPROT_SIZE=$(du -h "${DB_DIR}/uniprot_sprot.fasta" | cut -f1)
     echo "✓ Extraction complete! Size: ${SPROT_SIZE}"
@@ -88,7 +103,11 @@ else
     echo ""
     echo "Extracting..."
     echo ""
-    pv -pterb "${DB_DIR}/uniprot_sprot.fasta.gz" | gunzip > "${DB_DIR}/uniprot_sprot.fasta"
+    if [ "$USE_PV" = true ]; then
+        pv -pterb "${DB_DIR}/uniprot_sprot.fasta.gz" | gunzip > "${DB_DIR}/uniprot_sprot.fasta"
+    else
+        gunzip -c "${DB_DIR}/uniprot_sprot.fasta.gz" > "${DB_DIR}/uniprot_sprot.fasta"
+    fi
     echo ""
     SPROT_SIZE=$(du -h "${DB_DIR}/uniprot_sprot.fasta" | cut -f1)
     echo "✓ Download and extraction complete! Size: ${SPROT_SIZE}"
@@ -101,7 +120,6 @@ echo "STEP 3/3: Formatting Databases for BLAST"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "This creates index files for fast searching"
 echo ""
-source /Users/constanrine5d/.zprofile
 
 echo "Formatting TrEMBL (may take 5-10 minutes)..."
 if [ -f "${DB_DIR}/uniprot_trembl.fasta.psq" ]; then

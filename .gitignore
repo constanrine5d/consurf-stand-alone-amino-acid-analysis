@@ -13,6 +13,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+./venv
 
 # Virtual environments
 venv/
@@ -44,3 +45,4 @@ db/
 *.tmp
 *.bak
 *.old
+.venv/

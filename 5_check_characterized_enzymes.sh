@@ -13,7 +13,7 @@
 
 # Base results directory (relative to this script)
 # Point this to where your amino_acids_analysis_results folder is located
-RESULTS_DIR="./example/results_final"
+RESULTS_DIR="./results_final"
 
 # Mode: "all" to analyze all FASTA files, or path to single FASTA file
 MODE="all"
