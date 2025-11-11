@@ -73,21 +73,35 @@ Expected output: All ✅ checks should pass. If any fail, install the missing to
 #### Step 3: Run ConSurf Analysis
 
 ```bash
-./3_run_consurf_complete.sh <PDB_FILE> <CHAIN_ID> [OUTPUT_DIR]
+./3_run_consurf_complete.sh <PDB_FILE> <CHAIN_ID> [OPTIONS]
 ```
 
-Example:
+**Options**:
+- `-o, --output DIR`: Output directory (default: `results/results_[pdb_name]`)
+- `-n, --num-seq NUM`: Maximum sequences for MSA (default: 300)
+
+**Examples**:
 ```bash
+# Basic usage with defaults
 ./3_run_consurf_complete.sh example.pdb A
-# Or with custom output directory:
-./3_run_consurf_complete.sh example.pdb A results/results_example
+
+# With custom output directory
+./3_run_consurf_complete.sh example.pdb A --output results/results_example
+
+# With fewer sequences (for memory-limited systems)
+./3_run_consurf_complete.sh example.pdb A --num-seq 150
+
+# Combine both options
+./3_run_consurf_complete.sh example.pdb A -o results/results_example -n 150
 ```
+
+**Memory Issues?** If you encounter "MSA is too large" errors, use `--num-seq 150` or `--num-seq 100`.
 
 This script:
 - Activates conda environment automatically
 - Runs BLAST/HMMER search against protein databases
 - Performs CD-HIT clustering at 95% identity
-- Selects top 150 sequences (default, configurable)
+- Selects top sequences (default: 300, configurable)
 - Builds multiple sequence alignment (MSA)
 - Calculates conservation scores with Rate4Site
 - Generates ConSurf grades (1-9, where 9 = highly conserved)

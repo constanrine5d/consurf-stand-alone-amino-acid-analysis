@@ -14,7 +14,7 @@ source /opt/anaconda3/etc/profile.d/conda.sh
 conda activate python3.10bio
 
 # Read GENERAL_CONSTANTS.py and verify each tool
-CONSTANTS_FILE="/Users/constanrine5d/programs/ConSurf/stand_alone_consurf-1.00/GENERAL_CONSTANTS.py"
+CONSTANTS_FILE="./stand_alone_consurf-1.00/GENERAL_CONSTANTS.py"
 
 echo -e "${YELLOW}Checking Python packages:${NC}"
 python -c "import Bio; print('✅ biopython:', Bio.__version__)" 2>&1 || echo -e "${RED}✗ biopython not found${NC}"
@@ -130,7 +130,7 @@ fi
 
 echo ""
 echo -e "${YELLOW}Checking PDB file:${NC}"
-PDB_FILE="/Users/constanrine5d/programs/ConSurf/TtXyn30A_WT.pdb"
+PDB_FILE="./example.pdb"
 if [ -f "$PDB_FILE" ]; then
     echo -e "${GREEN}✅ PDB file:${NC} $PDB_FILE"
 else

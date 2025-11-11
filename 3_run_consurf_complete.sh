@@ -35,33 +35,70 @@ print_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Check arguments
-if [ $# -lt 2 ]; then
-    echo -e "${BLUE}Usage:${NC} $0 <PDB_FILE> <CHAIN_ID> [OUTPUT_DIR]"
+# Default values
+OUTPUT_DIR=""
+MAX_SEQUENCES=300
+
+# Show usage
+show_usage() {
+    echo -e "${BLUE}Usage:${NC} $0 <PDB_FILE> <CHAIN_ID> [OPTIONS]"
     echo ""
-    echo -e "${BLUE}Arguments:${NC}"
-    echo "  PDB_FILE   - Path to PDB file (required)"
-    echo "  CHAIN_ID   - Chain identifier (required, e.g., A, B, G)"
-    echo "  OUTPUT_DIR - Output directory (optional, default: results/results_[pdb_name])"
+    echo -e "${BLUE}Required Arguments:${NC}"
+    echo "  PDB_FILE      - Path to PDB file"
+    echo "  CHAIN_ID      - Chain identifier (e.g., A, B, G)"
     echo ""
-    echo -e "${BLUE}Example:${NC}"
+    echo -e "${BLUE}Options:${NC}"
+    echo "  -o, --output DIR     Output directory (default: results/results_[pdb_name])"
+    echo "  -n, --num-seq NUM    Maximum sequences for MSA (default: 300)"
+    echo "  -h, --help           Show this help message"
+    echo ""
+    echo -e "${BLUE}Examples:${NC}"
     echo "  $0 example.pdb A"
-    echo "  $0 example.pdb A results/results_example"
+    echo "  $0 example.pdb A --output results/results_example"
+    echo "  $0 example.pdb A --num-seq 150"
+    echo "  $0 example.pdb A -o results/results_example -n 150"
+    echo ""
+    echo -e "${BLUE}Note:${NC} If you encounter memory errors, reduce sequences with --num-seq 150 or --num-seq 100"
     echo ""
     echo -e "${BLUE}Database Location:${NC} /Volumes/const_2tb/consurf_databases/"
     echo -e "${BLUE}Conda Environment:${NC} $CONDA_ENV"
     exit 1
+}
+
+# Parse arguments
+if [ $# -lt 2 ]; then
+    show_usage
 fi
 
 PDB_FILE="$1"
 CHAIN_ID="$2"
+shift 2
+
+# Parse optional flags
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -o|--output)
+            OUTPUT_DIR="$2"
+            shift 2
+            ;;
+        -n|--num-seq)
+            MAX_SEQUENCES="$2"
+            shift 2
+            ;;
+        -h|--help)
+            show_usage
+            ;;
+        *)
+            print_error "Unknown option: $1"
+            show_usage
+            ;;
+    esac
+done
 
 # Auto-generate output directory if not provided
-if [ -z "$3" ]; then
+if [ -z "$OUTPUT_DIR" ]; then
     PDB_BASENAME=$(basename "$PDB_FILE" .pdb)
     OUTPUT_DIR="./results/results_${PDB_BASENAME}"
-else
-    OUTPUT_DIR="$3"
 fi
 
 # Check if PDB file exists
@@ -79,6 +116,7 @@ echo ""
 print_info "PDB File: $PDB_FILE"
 print_info "Chain: $CHAIN_ID"
 print_info "Output: $OUTPUT_DIR"
+print_info "Max Sequences: $MAX_SEQUENCES"
 print_info "Conda Env: $CONDA_ENV"
 echo ""
 
@@ -236,13 +274,13 @@ MONITOR_PID=$!
 # Bayes algorithm (default, more accurate than Maximum Likelihood)
 # --MIN_ID 10: Very low identity threshold to find distant homologs
 # --cutoff 0.001: More permissive E-value to find more sequences
-# --MAX_HOMOLOGS 500: Use 500 sequences for MSA
+# --MAX_HOMOLOGS: User-configurable (default: 300)
 python stand_alone_consurf.py \
     --pdb "$PDB_FILE" \
     --chain "$CHAIN_ID" \
     --dir "$OUTPUT_DIR" \
     --algorithm HMMER \
-    --MAX_HOMOLOGS 300 \
+    --MAX_HOMOLOGS "$MAX_SEQUENCES" \
     --MIN_ID 10 \
     --cutoff 0.001 2>&1 | tee "${OUTPUT_DIR}/consurf_run.log"
 
@@ -263,5 +301,23 @@ if [ $EXIT_CODE -eq 0 ]; then
 else
     print_error "ConSurf analysis failed with exit code $EXIT_CODE"
     print_info "Check the log file: ${OUTPUT_DIR}/consurf_run.log"
+    
+    # Check for memory/MSA size error
+    if grep -q "too large\|memory problem" "${OUTPUT_DIR}/consurf_run.log" 2>/dev/null || \
+       grep -q "too large\|memory problem" "${OUTPUT_DIR}/log.txt" 2>/dev/null; then
+        echo ""
+        print_error "MEMORY ERROR: MSA is too large for available memory"
+        echo ""
+        print_info "To fix this, rerun with fewer sequences using --num-seq flag:"
+        echo ""
+        echo -e "${GREEN}  # Try with 150 sequences:${NC}"
+        echo -e "  $0 $(basename $PDB_FILE) $CHAIN_ID --num-seq 150"
+        echo ""
+        echo -e "${GREEN}  # Or try with 100 sequences:${NC}"
+        echo -e "  $0 $(basename $PDB_FILE) $CHAIN_ID --num-seq 100"
+        echo ""
+        print_info "Current MAX_SEQUENCES: $MAX_SEQUENCES"
+    fi
+    
     exit $EXIT_CODE
 fi
