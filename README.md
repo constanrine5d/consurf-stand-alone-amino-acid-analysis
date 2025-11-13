@@ -264,6 +264,36 @@ or just drag and drop the `consurf_session.pse` file into PyMOL.
 - Grade 1 (Turquoise) → Variable
 - Gray (80%) → Insufficient Data
 
+💡 **See Full Example Outputs**: Check `results/results_example/` directory for complete visualization results.
+
+#### Step 7: Coevolutionary Analysis (Optional)
+
+Detect correlated mutations between residue positions:
+
+```bash
+./7_run_coevolution_analysis.sh results/results_example
+```
+
+**Key features**:
+- Computes pairwise covariance matrix between positions
+- Shows amino acid pairs at covarying positions (e.g., E-Y 45%, D-F 20%)
+- Optional triplet analysis for 3-way coevolution patterns
+- Generates heatmaps and ranked lists
+
+**Examples**:
+```bash
+# Basic covariance analysis
+./7_run_coevolution_analysis.sh results/results_example
+
+# Analyze specific position
+./7_run_coevolution_analysis.sh results/results_example --analyze-position 185
+
+# Find triplet coevolution patterns
+./7_run_coevolution_analysis.sh results/results_example --find-triplets
+```
+
+**Output**: Covariance matrices, heatmaps, top covarying pairs with AA frequencies.
+
 ### Complete Run Summary
 
 For a typical protein (508 amino acids, 150 sequences in MSA):
@@ -276,7 +306,8 @@ For a typical protein (508 amino acids, 150 sequences in MSA):
 | 4. Position Analysis | 5-10 min | 528 position folders with grouped FASTA files |
 | 5. Enzyme Check | 3-5 min | 6,426 characterization reports (147 unique proteins) |
 | 6. PyMOL Session | 30 sec | Visual conservation mapping with color scale |
-| **Total** | **~1-2 hours** | **Complete evolutionary analysis + visualization** |
+| 7. Coevolution Analysis | 2-5 min | Pairwise covariance matrix + visualizations |
+| **Total** | **~1-2 hours** | **Complete evolutionary analysis + coevolution** |
 
 ### Understanding the Results
 
@@ -319,7 +350,10 @@ For a typical protein (508 amino acids, 150 sequences in MSA):
 # 5. Generate PyMOL visualization
 ./6_generate_pymol_session.sh results/results_example
 
-# 6. View in PyMOL
+# 6. (Optional) Run coevolutionary analysis
+./7_run_coevolution_analysis.sh results/results_example
+
+# 7. View in PyMOL
 pymol results/results_example/consurf_session.pse
 ```
 
@@ -374,9 +408,11 @@ results/results_example/amino_acids_analysis_results/
 ├── 4_analyze_position.sh                   # Analyze amino acid distributions
 ├── 5_check_characterized_enzymes.sh        # Check enzyme characterization
 ├── 6_generate_pymol_session.sh             # Generate PyMOL visualization
+├── 7_run_coevolution_analysis.sh           # Coevolutionary analysis
 ├── libraries/                              # Python analysis scripts
 │   ├── analyze_position.py                 # Core position analysis
-│   └── check_characterized_enzymes.py      # UniProt enzyme checker
+│   ├── check_characterized_enzymes.py      # UniProt enzyme checker
+│   └── coevolutionary_analysis_v3.py       # Covariance + triplet analysis
 ├── bin/                                    # Pre-compiled binaries (rate4site, consurf)
 ├── stand_alone_consurf-1.00/               # ConSurf core scripts
 ├── results/                                # Analysis outputs
@@ -384,15 +420,17 @@ results/results_example/amino_acids_analysis_results/
 │       ├── consurf_session.pse             # PyMOL session file
 │       ├── consurf_grades.txt              # Conservation scores
 │       ├── amino_acids_analysis_results/   # Position-specific analyses
+│       ├── coevolutionary_analysis/        # Covariance matrices & heatmaps
 │       └── ...                             # Other ConSurf outputs
-└── example.pdb                             # Example protein structure
+├── example.pdb                             # Example protein structure
+└── POSITION_ANALYSIS_README.md             # Position analysis documentation
 ```
 
 ## Requirements
 
 - Python 3.10+
-- Conda environment with: hmmer, clustalw, cd-hit, mafft, muscle, biopython, pymol
-- Python packages: requests (for UniProt API queries)
+- Conda environment with: hmmer, clustalw, cd-hit, mafft, muscle, biopython, pymol, matplotlib, seaborn, pandas, numpy
+- Python packages: requests, tqdm (for API queries and progress bars)
 
 **To create the conda environment from the provided configuration:**
 
@@ -423,6 +461,10 @@ dependencies:
   - mafft
   - muscle
   - pymol-open-source
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
   - pip
   - pip:
       - requests
@@ -656,10 +698,11 @@ The `results/results_example` folder contains a complete example analysis with r
 ### Enhanced Analysis Pipeline
 - Author: Konstantinos Grigorakis
 - Contributions:
-  - Complete 6-step local automated workflow (database setup → visualization)
+  - Complete 7-step local automated workflow (database setup → visualization → coevolution)
   - Position-specific amino acid distribution analysis with automated sequence grouping
   - UniProt-based enzyme characterization system with batch API querying for the found sequences
   - PyMOL session generation with traditional ConSurf color scale visualization
+  - Coevolutionary analysis module with pairwise covariance computation and visualization
 
 **Note**: This repository was created in part with AI assistance ("vibe-coded") and may contain errors or incomplete configurations. It is intended for personal/research use only. Please verify all settings and paths for your specific environment before use.
 
